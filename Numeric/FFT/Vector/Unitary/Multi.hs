@@ -41,21 +41,23 @@ import Control.Monad.Primitive(RealWorld)
 -- | A discrete Fourier transform. The output and input sizes are the same (@n@).
 --
 -- @y_k = (1\/sqrt n) sum_(j=0)^(n-1) x_j e^(-2pi i j k\/n)@
-dft :: TransformND (Complex Double) (Complex Double)
-dft = U.dft {normalizationND = \ns -> constMultOutput $ 1 / sqrt (toEnum (VS.product ns))}
+dft :: U.FFTWMulti a => TransformND (Complex a) (Complex a)
+dft = U.dft {normalizationND = \ns -> constMultOutput scaleComplex $ 1 / sqrt (toEnum (VS.product ns))}
 
 -- | An inverse discrete Fourier transform.  The output and input sizes are the same (@n@).
 --
 -- @y_k = (1\/sqrt n) sum_(j=0)^(n-1) x_j e^(2pi i j k\/n)@
-idft :: TransformND (Complex Double) (Complex Double)
-idft = U.idft {normalizationND = \ns -> constMultOutput $ 1 / sqrt (toEnum (VS.product ns))}
+idft :: U.FFTWMulti a => TransformND (Complex a) (Complex a)
+idft = U.idft {normalizationND = \ns -> constMultOutput scaleComplex $ 1 / sqrt (toEnum (VS.product ns))}
 
 -- | A forward discrete Fourier transform with real data.  If the input size is @n@,
 -- the output size will be @n \`div\` 2 + 1@.
-dftR2C :: TransformND Double (Complex Double)
-dftR2C = U.dftR2C {normalizationND = \ns -> modifyOutput $
-                    complexR2CScaling (sqrt 2) ns (outputSizeND U.dftR2C $ VS.last ns)
+dftR2C :: U.FFTWMulti a => TransformND a (Complex a)
+dftR2C = base {normalizationND = \ns -> modifyOutput $
+                    complexR2CScaling (sqrt 2) ns (outputSizeND base $ VS.last ns)
         }
+  where
+    base = U.dftR2C
 
 -- | A normalized backward discrete Fourier transform which is the left inverse of
 -- 'U.dftR2C'.  (Specifically, @run dftC2R . run dftR2C == id@.)
@@ -67,12 +69,15 @@ dftR2C = U.dftR2C {normalizationND = \ns -> modifyOutput $
 --
 --  - If @length v == n@, then @length (run dftC2R v) == 2*(n-1)@.
 --
-dftC2R :: TransformND (Complex Double) Double
-dftC2R = U.dftC2R {normalizationND = \ns -> modifyInput $
-                    complexR2CScaling (sqrt 0.5) ns (inputSizeND U.dftC2R $ VS.last ns)
+dftC2R :: U.FFTWMulti a => TransformND (Complex a) a
+dftC2R = base {normalizationND = \ns -> modifyInput $
+                    complexR2CScaling (sqrt 0.5) ns (inputSizeND base $ VS.last ns)
         }
+  where
+    base = U.dftC2R
 
-complexR2CScaling :: Double -> VS.Vector Int -> Int -> MS.MVector RealWorld (Complex Double) -> IO ()
+
+complexR2CScaling :: (MS.Storable a, Floating a, Enum a) => a -> VS.Vector Int -> Int -> MS.MVector RealWorld (Complex a) -> IO ()
 complexR2CScaling !t !ns !len !a = assert (MS.length a == VS.product (VS.init ns) * len) $ do
     let !s1 = sqrt (1/toEnum (VS.product ns))
     let !s2 = t * s1
@@ -80,10 +85,10 @@ complexR2CScaling !t !ns !len !a = assert (MS.length a == VS.product (VS.init ns
     -- The output size is 2n+1; so if n>0 then the output size is >=1;
     -- and if n even then the output size is >=3.
     forM_ [0.. VS.product (VS.init ns) - 1] $ \idx -> do
-      unsafeModify a (idx * len) $ scaleByD s1
+      unsafeModify a (idx * len) $ scaleComplex s1
       if odd (VS.last ns)
-        then multC s2 (MS.unsafeSlice (idx * len + 1) (len-1) a)
+        then multC scaleComplex s2 (MS.unsafeSlice (idx * len + 1) (len-1) a)
         else do
-            unsafeModify a (idx * len + len - 1) $ scaleByD s1
-            multC s2 (MS.unsafeSlice (idx * len + 1) (len-2) a)
+            unsafeModify a (idx * len + len - 1) $ scaleComplex s1
+            multC scaleComplex s2 (MS.unsafeSlice (idx * len + 1) (len-2) a)
 

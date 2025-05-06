@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
 -- This module uses the test-framework-quickcheck2 package.
 module Main where
 
@@ -23,40 +24,40 @@ main = defaultMain
             -- However, its Planners are implicitly used by the other modules,
             -- so it's covered in the below tests.
             [ testGroup "invertibility"
-              [ testProperty "I.dft" $ prop_invert I.dft I.idft
-              , testProperty "I.dftR2C" $ prop_invert I.dftR2C I.dftC2R
-              , testProperty "I.dct1" $ prop_invert I.dct1 I.idct1
-              , testProperty "I.dct2" $ prop_invert I.dct2 I.idct2
-              , testProperty "I.dct3" $ prop_invert I.dct3 I.idct3
-              , testProperty "I.dct4" $ prop_invert I.dct4 I.idct4
-              , testProperty "I.dst1" $ prop_invert I.dst1 I.idst1
-              , testProperty "I.dst2" $ prop_invert I.dst2 I.idst2
-              , testProperty "I.dst3" $ prop_invert I.dst3 I.idst3
-              , testProperty "I.dst4" $ prop_invert I.dst4 I.idst4
-              , testProperty "U.dft" $ prop_invert U.dft U.idft
-              , testProperty "U.dftR2C" $ prop_invert U.dftR2C U.dftC2R
-              , testProperty "U.dct2" $ prop_invert U.dct2 U.idct2
+              [ testProperty "I.dft" $ prop_invert (I.dft @Double) I.idft
+              , testProperty "I.dftR2C" $ prop_invert (I.dftR2C @Double) I.dftC2R
+              , testProperty "I.dct1" $ prop_invert (I.dct1 @Double) I.idct1
+              , testProperty "I.dct2" $ prop_invert (I.dct2 @Double) I.idct2
+              , testProperty "I.dct3" $ prop_invert (I.dct3 @Double) I.idct3
+              , testProperty "I.dct4" $ prop_invert (I.dct4 @Double) I.idct4
+              , testProperty "I.dst1" $ prop_invert (I.dst1 @Double) I.idst1
+              , testProperty "I.dst2" $ prop_invert (I.dst2 @Double) I.idst2
+              , testProperty "I.dst3" $ prop_invert (I.dst3 @Double) I.idst3
+              , testProperty "I.dst4" $ prop_invert (I.dst4 @Double) I.idst4
+              , testProperty "U.dft" $ prop_invert (U.dft @Double) U.idft
+              , testProperty "U.dftR2C" $ prop_invert (U.dftR2C @Double) U.dftC2R
+              , testProperty "U.dct2" $ prop_invert (U.dct2 @Double) U.idct2
               ]
             , testGroup "orthogonality"
-              [ testProperty "U.dft" $ prop_orthog U.dft
-              , testProperty "U.idft" $ prop_orthog U.idft
-              , testProperty "U.dftR2C" $ prop_orthog U.dftR2C
-              , testProperty "U.dftC2R" $ prop_orthog U.dftR2C
-              , testProperty "U.dct2" $ prop_orthog U.dct2
-              , testProperty "U.idct2" $ prop_orthog U.idct2
-              , testProperty "U.dct4" $ prop_orthog U.dct4
+              [ testProperty "U.dft" $ prop_orthog (U.dft @Double)
+              , testProperty "U.idft" $ prop_orthog (U.idft @Double)
+              , testProperty "U.dftR2C" $ prop_orthog (U.dftR2C @Double)
+              , testProperty "U.dftC2R" $ prop_orthog (U.dftR2C @Double)
+              , testProperty "U.dct2" $ prop_orthog (U.dct2 @Double)
+              , testProperty "U.idct2" $ prop_orthog (U.idct2 @Double)
+              , testProperty "U.dct4" $ prop_orthog (U.dct4 @Double)
               ]
             , testGroup "invertibility ND"
-              [ testProperty "IM.dft" $ prop_invertND IM.dft IM.idft
-              , testProperty "IM.dftR2C" $ prop_invertND IM.dftR2C IM.dftC2R
-              , testProperty "UM.dft" $ prop_invertND UM.dft UM.idft
-              , testProperty "UM.dftR2C" $ prop_invertND UM.dftR2C UM.dftC2R
+              [ testProperty "IM.dft" $ prop_invertND (IM.dft @Double) IM.idft
+              , testProperty "IM.dftR2C" $ prop_invertND (IM.dftR2C @Double) IM.dftC2R
+              , testProperty "UM.dft" $ prop_invertND (UM.dft @Double) UM.idft
+              , testProperty "UM.dftR2C" $ prop_invertND (UM.dftR2C @Double) UM.dftC2R
               ]
             , testGroup "orthogonality"
-              [ testProperty "UM.dft" $ prop_orthogND UM.dft
-              , testProperty "UM.idft" $ prop_orthogND UM.idft
-              , testProperty "UM.dftR2C" $ prop_orthogND UM.dftR2C
-              , testProperty "UM.dftC2R" $ prop_orthogND UM.dftR2C
+              [ testProperty "UM.dft" $ prop_orthogND (UM.dft @Double)
+              , testProperty "UM.idft" $ prop_orthogND (UM.idft @Double)
+              , testProperty "UM.dftR2C" $ prop_orthogND (UM.dftR2C @Double)
+              , testProperty "UM.dftC2R" $ prop_orthogND (UM.dftR2C @Double)
               ]
             ]
 

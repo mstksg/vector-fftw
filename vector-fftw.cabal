@@ -64,7 +64,7 @@ Library
     Extra-libraries: fftw3
 
   default-extensions: ForeignFunctionInterface, RecordWildCards, BangPatterns, FlexibleInstances,
-                ScopedTypeVariables
+                ScopedTypeVariables, FlexibleContexts, MultiParamTypeClasses, FunctionalDependencies
   ghc-options: -Wall
 
   Ghc-Options: -O2

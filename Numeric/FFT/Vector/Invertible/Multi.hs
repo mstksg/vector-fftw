@@ -30,8 +30,8 @@ import Data.Complex
 import qualified Data.Vector.Storable as VS
 
 -- | A backward discrete Fourier transform which is the inverse of 'U.dft'.  The output and input sizes are the same (@n@).
-idft :: TransformND (Complex Double) (Complex Double)
-idft = U.idft {normalizationND = \ns -> constMultOutput $ 1 / toEnum (VS.product ns)}
+idft :: U.FFTWMulti a => TransformND (Complex a) (Complex a)
+idft = U.idft {normalizationND = \ns -> constMultOutput scaleComplex $ 1 / toEnum (VS.product ns)}
 
 -- | A normalized backward discrete Fourier transform which is the left inverse of
 -- 'U.dftR2C'.  (Specifically, @run dftC2R . run dftR2C == id@.)
@@ -43,5 +43,5 @@ idft = U.idft {normalizationND = \ns -> constMultOutput $ 1 / toEnum (VS.product
 --
 --  - If @length v == n0 * ... * nk@, then @length (run dftC2R v) == n0 * ... * 2*(nk-1)@.
 --
-dftC2R :: TransformND (Complex Double) Double
-dftC2R = U.dftC2R {normalizationND = \ns -> constMultOutput $ 1 / toEnum (VS.product ns)}
+dftC2R :: U.FFTWMulti a  => TransformND (Complex a) a
+dftC2R = U.dftC2R {normalizationND = \ns -> constMultOutput scaleScalar $ 1 / toEnum (VS.product ns)}

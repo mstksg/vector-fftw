@@ -22,7 +22,9 @@ module Numeric.FFT.Vector.Base(
             CFlags,
             CPlan,
             -- * Normalization helpers
-            Scalable(..),
+            ScaleFunc,
+            scaleComplex,
+            scaleScalar,
             modifyInput,
             modifyOutput,
             constMultOutput,
@@ -282,17 +284,24 @@ runND p = \dims v ->
 ---------------------------
 -- For scaling input/output:
 
-class Scalable a where
-    scaleByD :: Double -> a -> a
+-- class Scalable f where
+--     scaleByD :: Floating a => a -> f a -> f a
 
-instance Scalable Double where
-    scaleByD = (*)
-    {-# INLINE scaleByD #-}
+-- instance Scalable Identity where
+--     scaleByD s (Identity x) = Identity (s * x)
+--     {-# INLINE scaleByD #-}
 
-instance Scalable (Complex Double) where
-    scaleByD s (x:+y) = s*x :+ s*y
-    {-# INLINE scaleByD #-}
+-- instance Scalable Complex where
+--     scaleByD s (x:+y) = s*x :+ s*y
+--     {-# INLINE scaleByD #-}
 
+type ScaleFunc s a = s -> a -> a
+
+scaleComplex :: Num a => ScaleFunc a (Complex a)
+scaleComplex s (x:+y) = s*x :+ s*y
+
+scaleScalar :: Num a => ScaleFunc a a
+scaleScalar = (*)
 
 {-# INLINE modifyInput #-}
 modifyInput :: (MS.MVector RealWorld a -> IO ()) -> Plan a b -> Plan a b
@@ -303,12 +312,12 @@ modifyOutput :: (MS.MVector RealWorld b -> IO ()) -> Plan a b -> Plan a b
 modifyOutput f p@Plan{..} = p {planExecute = planExecute >> f planOutput}
 
 {-# INLINE constMultOutput #-}
-constMultOutput :: (Storable b, Scalable b) => Double -> Plan a b -> Plan a b
-constMultOutput !s = modifyOutput (multC s)
+constMultOutput :: (Storable b) => ScaleFunc s b -> s -> Plan a b -> Plan a b
+constMultOutput scaleByD !s = modifyOutput (multC scaleByD s)
 
 {-# INLINE multC #-}
-multC :: (Storable a, Scalable a) => Double -> MS.MVector RealWorld a -> IO ()
-multC !s v = forM_ [0..n-1] $ \k -> unsafeModify v k (scaleByD s)
+multC :: (Storable a) => ScaleFunc s a -> s -> MS.MVector RealWorld a -> IO ()
+multC scaleByD !s v = forM_ [0..n-1] $ \k -> unsafeModify v k (scaleByD s)
   where !n = MS.length v
 
 -- | Helper function; seems like it should be in the vector package...
