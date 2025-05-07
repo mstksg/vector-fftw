@@ -31,6 +31,7 @@ module Numeric.FFT.Vector.Unitary(
                 ) where
 
 import Numeric.FFT.Vector.Base
+import Numeric.FFT.Vector.FFI
 import qualified Numeric.FFT.Vector.Unnormalized as U
 import Data.Complex
 import qualified Data.Vector.Storable.Mutable as MS
@@ -39,18 +40,18 @@ import Control.Monad.Primitive(RealWorld)
 -- | A discrete Fourier transform. The output and input sizes are the same (@n@).
 --
 -- @y_k = (1\/sqrt n) sum_(j=0)^(n-1) x_j e^(-2pi i j k\/n)@
-dft :: U.FFTW a => Transform (Complex a) (Complex a)
+dft :: FFTW a => Transform a (Complex a) (Complex a)
 dft = U.dft {normalization = \n -> constMultOutput scaleComplex $ 1 / sqrt (toEnum n)}
 
 -- | An inverse discrete Fourier transform.  The output and input sizes are the same (@n@).
 --
 -- @y_k = (1\/sqrt n) sum_(j=0)^(n-1) x_j e^(2pi i j k\/n)@
-idft :: U.FFTW a => Transform (Complex a) (Complex a)
+idft :: FFTW a => Transform a (Complex a) (Complex a)
 idft = U.idft {normalization = \n -> constMultOutput scaleComplex $ 1 / sqrt (toEnum n)}
 
 -- | A forward discrete Fourier transform with real data.  If the input size is @n@,
 -- the output size will be @n \`div\` 2 + 1@.
-dftR2C :: U.FFTW a => Transform a (Complex a)
+dftR2C :: FFTW a => Transform a a (Complex a)
 dftR2C = U.dftR2C {normalization = \n -> modifyOutput $
                     complexR2CScaling (sqrt 2) n
         }
@@ -65,7 +66,7 @@ dftR2C = U.dftR2C {normalization = \n -> modifyOutput $
 --
 --  - If @length v == n@, then @length (run dftC2R v) == 2*(n-1)@.
 --
-dftC2R :: U.FFTW a => Transform (Complex a) a
+dftC2R :: FFTW a => Transform a (Complex a) a
 dftC2R = U.dftC2R {normalization = \n -> modifyInput $
                     complexR2CScaling (sqrt 0.5) n
         }
@@ -94,7 +95,7 @@ complexR2CScaling !t !n !a = do
 -- | A type-4 discrete cosine transform.  It is its own inverse.
 --
 -- @y_k = (1\/sqrt n) sum_(j=0)^(n-1) x_j cos(pi(j+1\/2)(k+1\/2)\/n)@
-dct4 :: U.FFTW a => Transform a a
+dct4 :: FFTW a => Transform a a a
 dct4 = U.dct4 {normalization = \n -> constMultOutput scaleScalar $ 1 / sqrt (2 * toEnum n)}
 
 -- | A type-2 discrete cosine transform.  Its inverse is 'dct3'.
@@ -102,7 +103,7 @@ dct4 = U.dct4 {normalization = \n -> constMultOutput scaleScalar $ 1 / sqrt (2 *
 -- @y_k = w(k) sum_(j=0)^(n-1) x_j cos(pi(j+1\/2)k\/n);@
 -- where
 -- @w(0)=1\/sqrt n@, and @w(k)=sqrt(2\/n)@ for @k>0@.
-dct2 :: U.FFTW a => Transform a a
+dct2 :: FFTW a => Transform a a a
 dct2 = U.dct2 {normalization = \n -> modifyOutput $ \a -> do
     let n' = toEnum n
     let !s1 = sqrt $ 1 / (4*n')
@@ -116,7 +117,7 @@ dct2 = U.dct2 {normalization = \n -> modifyOutput $ \a -> do
 -- @y_k = (-1)^k w(n-1) x_(n-1) + 2 sum_(j=0)^(n-2) w(j) x_j sin(pi(j+1)(k+1\/2)/n);@
 -- where
 -- @w(0)=1\/sqrt(n)@, and @w(k)=1/sqrt(2n)@ for @k>0@.
-idct2 :: U.FFTW a => Transform a a
+idct2 :: FFTW a => Transform a a a
 idct2 = U.dct3 {normalization = \n -> modifyInput $ \a -> do
     let n' = toEnum n
     let !s1 = sqrt $ 1 / n'

@@ -32,6 +32,7 @@ module Numeric.FFT.Vector.Base(
             unsafeModify,
             ) where
 
+import Numeric.FFT.Vector.FFI
 import qualified Data.Vector.Storable as VS
 import qualified Data.Vector.Storable.Mutable as MS
 import Data.Vector.Generic as V hiding (forM_)
@@ -41,49 +42,17 @@ import Control.Concurrent.MVar
 import Control.Monad.Primitive (RealWorld,PrimMonad(..), PrimBase,
             unsafePrimToPrim, unsafePrimToIO)
 import Control.Monad(forM_)
-import Foreign (Storable(..), Ptr, FunPtr,
-                ForeignPtr, withForeignPtr, newForeignPtr)
-import Foreign.C (CInt(..), CUInt, CSize(..))
-import Data.Bits ( (.|.) )
+import Foreign (Storable(..), Ptr, FunPtr, withForeignPtr, newForeignPtr)
+import Foreign.C (CInt(..), CSize(..))
 import Data.Complex(Complex(..))
 import Foreign.Storable.Complex()
 import System.IO.Unsafe (unsafePerformIO)
 
 
-
-#include <fftw3.h>
-
----------------------
--- Creating FFTW plans
-
--- First, the Transform flags:
-data PlanType = Estimate | Measure | Patient | Exhaustive
-data Preservation = PreserveInput | DestroyInput
-
-type CFlags = CUInt
-
--- | Marshal the Transform flags for use by fftw.
-planInitFlags :: PlanType -> Preservation -> CFlags
-planInitFlags pt pr = planTypeInt .|. preservationInt
-  where
-    planTypeInt = case pt of
-                    Estimate -> #const FFTW_ESTIMATE
-                    Measure -> #const FFTW_MEASURE
-                    Patient -> #const FFTW_PATIENT
-                    Exhaustive -> #const FFTW_EXHAUSTIVE
-    preservationInt = case pr of
-                    PreserveInput -> #const FFTW_PRESERVE_INPUT
-                    DestroyInput -> #const FFTW_DESTROY_INPUT
-
-newtype CPlan = CPlan {unCPlan :: ForeignPtr CPlan}
-
-withPlan :: CPlan -> (Ptr CPlan -> IO a) -> IO a
+withPlan :: CPlan r -> (Ptr (CPlan r) -> IO a) -> IO a
 withPlan = withForeignPtr . unCPlan
 
-foreign import ccall unsafe fftw_execute :: Ptr CPlan -> IO ()
-foreign import ccall "&" fftw_destroy_plan :: FunPtr (Ptr CPlan -> IO ())
-
-newPlan :: Ptr CPlan -> IO CPlan
+newPlan :: FFTW r => Ptr (CPlan r) -> IO (CPlan r)
 newPlan = fmap CPlan . newForeignPtr fftw_destroy_plan
 
 ----------------------------------------
@@ -176,17 +145,17 @@ newFFTVector n = do
 -- Transforms: methods of plan creation.
 
 -- | A transform which may be applied to vectors of different sizes.
-data Transform a b = Transform {
+data Transform r a b = Transform {
                         inputSize :: Int -> Int,
                         outputSize :: Int -> Int,
                         creationSizeFromInput :: Int -> Int,
-                        makePlan :: CInt -> Ptr a -> Ptr b -> CFlags -> IO (Ptr CPlan),
+                        makePlan :: CInt -> Ptr a -> Ptr b -> CFlags -> IO (Ptr (CPlan r)),
                         normalization :: Int -> Plan a b -> Plan a b
                     }
 
 -- | Create a 'Plan' of a specific size for this transform.
-planOfType :: (Storable a, Storable b) => PlanType
-                                -> Transform a b -> Int -> Plan a b
+planOfType :: (FFTW r, Storable a, Storable b) => PlanType
+                                -> Transform r a b -> Int -> Plan a b
 planOfType ptype Transform{..} n
   | m_in <= 0 || m_out <= 0 = error "Can't (yet) plan for empty arrays!"
   | otherwise  = unsafePerformIO $ do
@@ -208,13 +177,13 @@ planOfType ptype Transform{..} n
 
 -- | Create a 'Plan' of a specific size.  This function is equivalent to
 -- @'planOfType' 'Estimate'@.
-plan :: (Storable a, Storable b) => Transform a b -> Int -> Plan a b
+plan :: (FFTW r, Storable a, Storable b) => Transform r a b -> Int -> Plan a b
 plan = planOfType Estimate
 {-# INLINE plan #-}
 
 -- | Create and run a 'Plan' for the given transform.
-run :: (Vector v a, Vector v b, Storable a, Storable b)
-            => Transform a b -> v a -> v b
+run :: (FFTW r, Vector v a, Vector v b, Storable a, Storable b)
+            => Transform r a b -> v a -> v b
 run p = \v -> execute
             (planOfType Estimate p $ creationSizeFromInput p $ V.length v)
             v
@@ -226,11 +195,11 @@ run p = \v -> execute
 -- | A transform which may be applied to vectors of different sizes.
 --
 -- @since 0.2
-data TransformND a b = TransformND {
+data TransformND r a b = TransformND {
                         inputSizeND :: Int -> Int,
                         outputSizeND :: Int -> Int,
                         creationSizeFromInputND :: Int -> Int,
-                        makePlanND :: CInt -> Ptr CInt -> Ptr a -> Ptr b -> CFlags -> IO (Ptr CPlan),
+                        makePlanND :: CInt -> Ptr CInt -> Ptr a -> Ptr b -> CFlags -> IO (Ptr (CPlan r)),
                         normalizationND :: VS.Vector Int -> Plan a b -> Plan a b
                     }
 
@@ -238,8 +207,8 @@ data TransformND a b = TransformND {
 -- 'dims' must have rank greater or equal to 1
 --
 -- @since 0.2
-planOfTypeND :: (Storable a, Storable b) => PlanType
-                                -> TransformND a b -> VS.Vector Int -> Plan a b
+planOfTypeND :: (FFTW r, Storable a, Storable b) => PlanType
+                                -> TransformND r a b -> VS.Vector Int -> Plan a b
 planOfTypeND ptype TransformND{..} dims
   | m_in <= 0 || m_out <= 0 = error "Can't (yet) plan for empty arrays!"
   | otherwise  = unsafePerformIO $ do
@@ -265,15 +234,15 @@ planOfTypeND ptype TransformND{..} dims
 -- @'planOfType' 'Estimate'@.
 --
 -- @since 0.2
-planND :: (Storable a, Storable b) => TransformND a b -> VS.Vector Int -> Plan a b
+planND :: (FFTW r, Storable a, Storable b) => TransformND r a b -> VS.Vector Int -> Plan a b
 planND = planOfTypeND Estimate
 {-# INLINE planND #-}
 
 -- | Create and run a 'Plan' for the given transform.
 --
 -- @since 0.2
-runND :: (Vector v a, Vector v b, Storable a, Storable b)
-            => TransformND a b -> VS.Vector Int ->  v a -> v b
+runND :: (FFTW r, Vector v a, Vector v b, Storable a, Storable b)
+            => TransformND r a b -> VS.Vector Int ->  v a -> v b
 runND p = \dims v ->
   let creationSize = V.init dims `V.snoc` creationSizeFromInputND p (V.last dims) in
     execute
@@ -283,17 +252,6 @@ runND p = \dims v ->
 
 ---------------------------
 -- For scaling input/output:
-
--- class Scalable f where
---     scaleByD :: Floating a => a -> f a -> f a
-
--- instance Scalable Identity where
---     scaleByD s (Identity x) = Identity (s * x)
---     {-# INLINE scaleByD #-}
-
--- instance Scalable Complex where
---     scaleByD s (x:+y) = s*x :+ s*y
---     {-# INLINE scaleByD #-}
 
 type ScaleFunc s a = s -> a -> a
 

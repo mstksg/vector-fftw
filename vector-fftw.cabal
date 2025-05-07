@@ -53,15 +53,16 @@ Library
 
   Other-modules:
         Numeric.FFT.Vector.Base
+        Numeric.FFT.Vector.FFI
 
   Build-depends: base>=4.3 && < 4.21,
                  vector>=0.9 && < 0.14,
                  primitive>=0.6 && < 0.10,
                  storable-complex==0.2.*
   if os(windows)
-    Extra-libraries: fftw3-3
+    Extra-libraries: fftw3-3, fftw3f-3
   else
-    Extra-libraries: fftw3
+    Extra-libraries: fftw3, fftw3f
 
   default-extensions: ForeignFunctionInterface, RecordWildCards, BangPatterns, FlexibleInstances,
                 ScopedTypeVariables, FlexibleContexts, MultiParamTypeClasses, FunctionalDependencies

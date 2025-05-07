@@ -41,13 +41,14 @@ module Numeric.FFT.Vector.Invertible(
                     ) where
 
 import Numeric.FFT.Vector.Base
+import Numeric.FFT.Vector.FFI
 import qualified Numeric.FFT.Vector.Unnormalized as U
 import Data.Complex
 
 -- | A backward discrete Fourier transform which is the inverse of 'U.dft'.  The output and input sizes are the same (@n@).
 --
 -- @y_k = (1\/n) sum_(j=0)^(n-1) x_j e^(2pi i j k/n)@
-idft :: U.FFTW a => Transform (Complex a) (Complex a)
+idft :: FFTW a => Transform a (Complex a) (Complex a)
 idft = U.idft {normalization = \n -> constMultOutput scaleComplex $ 1 / toEnum n}
 
 -- | A normalized backward discrete Fourier transform which is the left inverse of
@@ -60,7 +61,7 @@ idft = U.idft {normalization = \n -> constMultOutput scaleComplex $ 1 / toEnum n
 --
 --  - If @length v == n@, then @length (run dftC2R v) == 2*(n-1)@.
 --
-dftC2R :: U.FFTW a => Transform (Complex a) a
+dftC2R :: FFTW a => Transform a (Complex a) a
 dftC2R = U.dftC2R {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum n}
 
 -- OK, the inverse of each unnormalized operation.
@@ -73,48 +74,48 @@ dftC2R = U.dftC2R {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnu
 -- | A type-1 discrete cosine transform which is the inverse of 'U.dct1'.
 --
 -- @y_k = (1\/(2(n-1)) [x_0 + (-1)^k x_(n-1) + 2 sum_(j=1)^(n-2) x_j cos(pi j k\/(n-1))]@
-idct1 :: U.FFTW a => Transform a a
+idct1 :: FFTW a => Transform a a a
 idct1 = U.dct1 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * (n-1))}
 
 -- | A type-3 discrete cosine transform which is the inverse of 'U.dct2'.
 --
 -- @y_k = (1\/(2n)) [x_0 + 2 sum_(j=1)^(n-1) x_j cos(pi j(k+1\/2)\/n)]@
-idct2 :: U.FFTW a => Transform a a
+idct2 :: FFTW a => Transform a a a
 idct2 = U.dct3 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * n)}
 
 -- | A type-2 discrete cosine transform which is the inverse of 'U.dct3'.
 --
 -- @y_k = (1\/n) sum_(j=0)^(n-1) x_j cos(pi(j+1\/2)k\/n)@
-idct3 :: U.FFTW a => Transform  a a
+idct3 :: FFTW a => Transform a  a a
 idct3 = U.dct2 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * n)}
 
 -- | A type-4 discrete cosine transform which is the inverse of 'U.dct4'.
 --
 -- @y_k = (1\/n) sum_(j=0)^(n-1) x_j cos(pi(j+1\/2)(k+1\/2)\/n)@
-idct4 :: U.FFTW a => Transform a a
+idct4 :: FFTW a => Transform a a a
 idct4 = U.dct4 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * n)}
 
 -- | A type-1 discrete sine transform which is the inverse of 'U.dst1'.
 --
 -- @y_k = (1\/(n+1)) sum_(j=0)^(n-1) x_j sin(pi(j+1)(k+1)\/(n+1))@
-idst1 :: U.FFTW a => Transform a a
+idst1 :: FFTW a => Transform a a a
 idst1 = U.dst1 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * (n+1))}
 
 -- | A type-3 discrete sine transform which is the inverse of 'U.dst2'.
 --
 -- @y_k = (1\/(2n)) [(-1)^k x_(n-1) + 2 sum_(j=0)^(n-2) x_j sin(pi(j+1)(k+1\/2)/n)]@
-idst2 :: U.FFTW a => Transform a a
+idst2 :: FFTW a => Transform a a a
 idst2 = U.dst3 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * n)}
 
 -- | A type-2 discrete sine transform which is the inverse of 'U.dst3'.
 --
 -- @y_k = (1\/n) sum_(j=0)^(n-1) x_j sin(pi(j+1\/2)(k+1)\/n)@
-idst3 :: U.FFTW a => Transform a a
+idst3 :: FFTW a => Transform a a a
 idst3 = U.dst2 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * n)}
 
 -- | A type-4 discrete sine transform which is the inverse of 'U.dst4'.
 --
 -- @y_k = (1\/(2n)) sum_(j=0)^(n-1) x_j sin(pi(j+1\/2)(k+1\/2)\/n)@
-idst4 :: U.FFTW a => Transform a a
+idst4 :: FFTW a => Transform a a a
 idst4 = U.dst4 {normalization = \n -> constMultOutput scaleScalar $ 1 / toEnum (2 * n)}
 

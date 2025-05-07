@@ -25,12 +25,13 @@ module Numeric.FFT.Vector.Invertible.Multi
   ) where
 
 import Numeric.FFT.Vector.Base
+import Numeric.FFT.Vector.FFI
 import qualified Numeric.FFT.Vector.Unnormalized.Multi as U
 import Data.Complex
 import qualified Data.Vector.Storable as VS
 
 -- | A backward discrete Fourier transform which is the inverse of 'U.dft'.  The output and input sizes are the same (@n@).
-idft :: U.FFTWMulti a => TransformND (Complex a) (Complex a)
+idft :: FFTW a => TransformND a (Complex a) (Complex a)
 idft = U.idft {normalizationND = \ns -> constMultOutput scaleComplex $ 1 / toEnum (VS.product ns)}
 
 -- | A normalized backward discrete Fourier transform which is the left inverse of
@@ -43,5 +44,5 @@ idft = U.idft {normalizationND = \ns -> constMultOutput scaleComplex $ 1 / toEnu
 --
 --  - If @length v == n0 * ... * nk@, then @length (run dftC2R v) == n0 * ... * 2*(nk-1)@.
 --
-dftC2R :: U.FFTWMulti a  => TransformND (Complex a) a
+dftC2R :: FFTW a  => TransformND a (Complex a) a
 dftC2R = U.dftC2R {normalizationND = \ns -> constMultOutput scaleScalar $ 1 / toEnum (VS.product ns)}

@@ -30,68 +30,15 @@ module Numeric.FFT.Vector.Unnormalized(
                     dst2,
                     dst3,
                     dst4,
-                    -- * Supported types
-                    FFTW,
                     ) where
 
 import Numeric.FFT.Vector.Base
-import Foreign
-import Foreign.C
+import Numeric.FFT.Vector.FFI
 import Data.Complex
 
 #include <fftw3.h>
 
--- | Whether the complex fft is forwards or backwards.
-type CDirection = CInt
-
--- | The type of the cosine or sine transform.
-type CKind = (#type fftw_r2r_kind)
-
-foreign import ccall unsafe "fftw_plan_dft_1d" fftw_plan_dft_1d_double
-    :: CInt -> Ptr (Complex Double) -> Ptr (Complex Double) -> CDirection
-        -> CFlags -> IO (Ptr CPlan)
-
-foreign import ccall unsafe "fftw_plan_dft_1d" fftw_plan_dft_1d_float
-    :: CInt -> Ptr (Complex Float) -> Ptr (Complex Float) -> CDirection
-        -> CFlags -> IO (Ptr CPlan)
-
-foreign import ccall unsafe "fftw_plan_dft_r2c_1d" fftw_plan_dft_r2c_1d_double
-    :: CInt -> Ptr Double -> Ptr (Complex Double) -> CFlags -> IO (Ptr CPlan)
-
-foreign import ccall unsafe "fftw_plan_dft_r2c_1d" fftw_plan_dft_r2c_1d_float
-    :: CInt -> Ptr Float -> Ptr (Complex Float) -> CFlags -> IO (Ptr CPlan)
-
-foreign import ccall unsafe "fftw_plan_dft_c2r_1d" fftw_plan_dft_c2r_1d_double
-    :: CInt -> Ptr (Complex Double) -> Ptr Double -> CFlags -> IO (Ptr CPlan)
-
-foreign import ccall unsafe "fftw_plan_dft_c2r_1d" fftw_plan_dft_c2r_1d_float
-    :: CInt -> Ptr (Complex Float) -> Ptr Float -> CFlags -> IO (Ptr CPlan)
-
-foreign import ccall unsafe "fftw_plan_r2r_1d" fftw_plan_r2r_1d_double
-    :: CInt -> Ptr Double -> Ptr Double -> CKind -> CFlags -> IO (Ptr CPlan)
-
-foreign import ccall unsafe "fftw_plan_r2r_1d" fftw_plan_r2r_1d_float
-    :: CInt -> Ptr Float -> Ptr Float -> CKind -> CFlags -> IO (Ptr CPlan)
-
-class (Storable a, Floating a, Enum a) => FFTW a where
-    fftw_plan_dft_1d :: CInt -> Ptr (Complex a) -> Ptr (Complex a) -> CDirection -> CFlags -> IO (Ptr CPlan)
-    fftw_plan_dft_r2c_1d :: CInt -> Ptr a -> Ptr (Complex a) -> CFlags -> IO (Ptr CPlan)
-    fftw_plan_dft_c2r_1d :: CInt -> Ptr (Complex a) -> Ptr a -> CFlags -> IO (Ptr CPlan)
-    fftw_plan_r2r_1d :: CInt -> Ptr a -> Ptr a -> CKind -> CFlags -> IO (Ptr CPlan)
-
-instance FFTW Double where
-    fftw_plan_dft_1d = fftw_plan_dft_1d_double
-    fftw_plan_dft_r2c_1d = fftw_plan_dft_r2c_1d_double
-    fftw_plan_dft_c2r_1d = fftw_plan_dft_c2r_1d_double
-    fftw_plan_r2r_1d = fftw_plan_r2r_1d_double
-
-instance FFTW Float where
-    fftw_plan_dft_1d = fftw_plan_dft_1d_float
-    fftw_plan_dft_r2c_1d = fftw_plan_dft_r2c_1d_float
-    fftw_plan_dft_c2r_1d = fftw_plan_dft_c2r_1d_float
-    fftw_plan_r2r_1d = fftw_plan_r2r_1d_float
-
-dft1D :: FFTW a => CDirection -> Transform (Complex a) (Complex a)
+dft1D :: FFTW a => CDirection -> Transform a (Complex a) (Complex a)
 dft1D d = Transform {
             inputSize = id,
             outputSize = id,
@@ -103,18 +50,18 @@ dft1D d = Transform {
 -- | A forward discrete Fourier transform.  The output and input sizes are the same (@n@).
 --
 -- @y_k = sum_(j=0)^(n-1) x_j e^(-2pi i j k/n)@
-dft :: FFTW a => Transform (Complex a) (Complex a)
-dft = dft1D (#const FFTW_FORWARD)
+dft :: FFTW a => Transform a (Complex a) (Complex a)
+dft = dft1D fftForward
 
 -- | A backward discrete Fourier transform.  The output and input sizes are the same (@n@).
 --
 -- @y_k = sum_(j=0)^(n-1) x_j e^(2pi i j k/n)@
-idft :: FFTW a => Transform (Complex a) (Complex a)
-idft = dft1D (#const FFTW_BACKWARD)
+idft :: FFTW a => Transform a (Complex a) (Complex a)
+idft = dft1D fftBackward
 
 -- | A forward discrete Fourier transform with real data.  If the input size is @n@,
 -- the output size will be @n \`div\` 2 + 1@.
-dftR2C :: FFTW a => Transform a (Complex a)
+dftR2C :: FFTW a => Transform a a (Complex a)
 dftR2C = Transform {
             inputSize = id,
             outputSize = \n -> n `div` 2 + 1,
@@ -131,7 +78,7 @@ dftR2C = Transform {
 --    /input/ size is @n \`div\` 2 + 1@.
 --
 --  - If @length v == n@, then @length (run dftC2R v) == 2*(n-1)@.
-dftC2R :: FFTW a => Transform (Complex a) a
+dftC2R :: FFTW a => Transform a (Complex a) a
 dftC2R = Transform {
             inputSize = \n -> n `div` 2 + 1,
             outputSize = id,
@@ -140,7 +87,7 @@ dftC2R = Transform {
             normalization = const id
         }
 
-r2rTransform :: FFTW a => CKind -> Transform a a
+r2rTransform :: FFTW a => CKind -> Transform a a a
 r2rTransform kind = Transform {
                     inputSize = id,
                     outputSize = id,
@@ -156,47 +103,47 @@ r2rTransform kind = Transform {
 -- | A type-1 discrete cosine transform.
 --
 -- @y_k = x_0 + (-1)^k x_(n-1) + 2 sum_(j=1)^(n-2) x_j cos(pi j k\/(n-1))@
-dct1 :: FFTW a => Transform a a
+dct1 :: FFTW a => Transform a a a
 dct1 = r2rTransform (#const  FFTW_REDFT00)
 
 -- | A type-2 discrete cosine transform.
 --
 -- @y_k = 2 sum_(j=0)^(n-1) x_j cos(pi(j+1\/2)k\/n)@
-dct2 :: FFTW a => Transform a a
+dct2 :: FFTW a => Transform a a a
 dct2 = r2rTransform (#const  FFTW_REDFT10)
 
 -- | A type-3 discrete cosine transform.
 --
 -- @y_k = x_0 + 2 sum_(j=1)^(n-1) x_j cos(pi j(k+1\/2)\/n)@
-dct3 :: FFTW a => Transform a a
+dct3 :: FFTW a => Transform a a a
 dct3 = r2rTransform (#const  FFTW_REDFT01)
 
 -- | A type-4 discrete cosine transform.
 --
 -- @y_k = 2 sum_(j=0)^(n-1) x_j cos(pi(j+1\/2)(k+1\/2)\/n)@
-dct4 :: FFTW a => Transform a a
+dct4 :: FFTW a => Transform a a a
 dct4 = r2rTransform (#const  FFTW_REDFT11)
 
 -- | A type-1 discrete sine transform.
 --
 -- @y_k = 2 sum_(j=0)^(n-1) x_j sin(pi(j+1)(k+1)\/(n+1))@
-dst1 :: FFTW a => Transform a a
+dst1 :: FFTW a => Transform a a a
 dst1 = r2rTransform (#const  FFTW_RODFT00)
 
 -- | A type-2 discrete sine transform.
 --
 -- @y_k = 2 sum_(j=0)^(n-1) x_j sin(pi(j+1\/2)(k+1)\/n)@
-dst2 :: FFTW a => Transform a a
+dst2 :: FFTW a => Transform a a a
 dst2 = r2rTransform (#const  FFTW_RODFT10)
 
 -- | A type-3 discrete sine transform.
 --
 -- @y_k = (-1)^k x_(n-1) + 2 sum_(j=0)^(n-2) x_j sin(pi(j+1)(k+1\/2)/n)@
-dst3 :: FFTW a => Transform a a
+dst3 :: FFTW a => Transform a a a
 dst3 = r2rTransform (#const  FFTW_RODFT01)
 
 -- | A type-4 discrete sine transform.
 --
 -- @y_k = sum_(j=0)^(n-1) x_j sin(pi(j+1\/2)(k+1\/2)\/n)@
-dst4 :: FFTW a => Transform a a
+dst4 :: FFTW a => Transform a a a
 dst4 = r2rTransform (#const FFTW_RODFT11)

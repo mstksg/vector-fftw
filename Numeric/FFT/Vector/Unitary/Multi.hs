@@ -32,6 +32,7 @@ module Numeric.FFT.Vector.Unitary.Multi
 import Control.Exception (assert)
 import Control.Monad (forM_)
 import Numeric.FFT.Vector.Base
+import Numeric.FFT.Vector.FFI
 import qualified Numeric.FFT.Vector.Unnormalized.Multi as U
 import Data.Complex
 import qualified Data.Vector.Storable as VS
@@ -41,18 +42,18 @@ import Control.Monad.Primitive(RealWorld)
 -- | A discrete Fourier transform. The output and input sizes are the same (@n@).
 --
 -- @y_k = (1\/sqrt n) sum_(j=0)^(n-1) x_j e^(-2pi i j k\/n)@
-dft :: U.FFTWMulti a => TransformND (Complex a) (Complex a)
+dft :: FFTW a => TransformND a (Complex a) (Complex a)
 dft = U.dft {normalizationND = \ns -> constMultOutput scaleComplex $ 1 / sqrt (toEnum (VS.product ns))}
 
 -- | An inverse discrete Fourier transform.  The output and input sizes are the same (@n@).
 --
 -- @y_k = (1\/sqrt n) sum_(j=0)^(n-1) x_j e^(2pi i j k\/n)@
-idft :: U.FFTWMulti a => TransformND (Complex a) (Complex a)
+idft :: FFTW a => TransformND a (Complex a) (Complex a)
 idft = U.idft {normalizationND = \ns -> constMultOutput scaleComplex $ 1 / sqrt (toEnum (VS.product ns))}
 
 -- | A forward discrete Fourier transform with real data.  If the input size is @n@,
 -- the output size will be @n \`div\` 2 + 1@.
-dftR2C :: U.FFTWMulti a => TransformND a (Complex a)
+dftR2C :: FFTW a => TransformND a a (Complex a)
 dftR2C = base {normalizationND = \ns -> modifyOutput $
                     complexR2CScaling (sqrt 2) ns (outputSizeND base $ VS.last ns)
         }
@@ -69,7 +70,7 @@ dftR2C = base {normalizationND = \ns -> modifyOutput $
 --
 --  - If @length v == n@, then @length (run dftC2R v) == 2*(n-1)@.
 --
-dftC2R :: U.FFTWMulti a => TransformND (Complex a) a
+dftC2R :: FFTW a => TransformND a (Complex a) a
 dftC2R = base {normalizationND = \ns -> modifyInput $
                     complexR2CScaling (sqrt 0.5) ns (inputSizeND base $ VS.last ns)
         }

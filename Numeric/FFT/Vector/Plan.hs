@@ -15,6 +15,9 @@ module Numeric.FFT.Vector.Plan(
                 planOutputSize,
                 execute,
                 executeM,
+                -- * Allowed Types
+                FFTW,
                 ) where
 
 import Numeric.FFT.Vector.Base
+import Numeric.FFT.Vector.FFI
